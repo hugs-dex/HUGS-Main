@@ -1,0 +1,46 @@
+cff-version: 1.2.0
+message: "If you use HUGS in your research, please cite the paper below."
+title: "HUGS-Main: Project Entry Point"
+type: software
+authors:
+  - family-names: Yu
+    given-names: Mingrui
+  - family-names: Jiang
+    given-names: Yongpeng
+  - family-names: Jia
+    given-names: Yongyi
+  - family-names: Lv
+    given-names: Kangchen
+  - family-names: Yan
+    given-names: Xiangjie
+  - family-names: Huang
+    given-names: Li
+  - family-names: Ren
+    given-names: Yi
+  - family-names: Li
+    given-names: Xiang
+repository-code: "https://github.com/hugs-dex/HUGS-Main"
+url: "https://hugs-dex.github.io/"
+preferred-citation:
+  type: article
+  title: "HUGS: Guiding Unified Dexterous Grasp Synthesis Across Modes and Scales via Learned Human Priors"
+  authors:
+    - family-names: Yu
+      given-names: Mingrui
+    - family-names: Jiang
+      given-names: Yongpeng
+    - family-names: Jia
+      given-names: Yongyi
+    - family-names: Lv
+      given-names: Kangchen
+    - family-names: Yan
+      given-names: Xiangjie
+    - family-names: Huang
+      given-names: Li
+    - family-names: Ren
+      given-names: Yi
+    - family-names: Li
+      given-names: Xiang
+  journal: "arXiv preprint arXiv:2607.04554"
+  year: 2026
+  url: "https://arxiv.org/abs/2607.04554"

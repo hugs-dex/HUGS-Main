@@ -1,0 +1,18 @@
+# Local configuration and environments
+.env
+.env.*
+!.env.example
+.venv/
+envs/
+local/
+.DS_Store
+
+# External data and generated artifacts
+data/
+datasets/
+checkpoints/
+outputs/
+validation/
+.cache/
+__pycache__/
+*.py[cod]
