@@ -13,6 +13,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib import font_manager
+from matplotlib.lines import Line2D
 from matplotlib.patches import Patch
 
 if __package__:
@@ -72,8 +73,9 @@ def style_axis(axis: plt.Axes, scales: list[str]) -> None:
 
 
 def count_grid(method_count: int) -> tuple[int, int]:
-    columns = 3 if method_count in (3, 6) else min(2, method_count)
-    return math.ceil(method_count / columns), columns
+    if method_count > 4:
+        raise ValueError("The paper layout has four synthesis method panels.")
+    return 2, 2
 
 
 def draw_counts(subfig, methods: list[Method], scales: list[str]) -> None:
@@ -84,20 +86,30 @@ def draw_counts(subfig, methods: list[Method], scales: list[str]) -> None:
     maximum = max((m.average_count(s, g, "evaluated_grasps")
                    for m in methods for s in scales for g in types), default=0.0)
     width = 1.0 / max(len(types), 1)
-    for axis, method in zip(axes.flat, methods):
+    methods_by_label = {method.label: method for method in methods}
+    panel_order = ("Heur-Fix", "Heur-Single", "Heur-Multi", "HUGS")
+    ordered_methods = [methods_by_label.pop(label, None) for label in panel_order]
+    ordered_methods.extend(methods_by_label.values())
+    for axis, method, label in zip(axes.flat, ordered_methods, panel_order):
+        title = method.label if method is not None else label
+        if method is None:
+            axis.set_title(f"Method: {title}", loc="left", fontsize=6,
+                           fontweight="bold", pad=0.2)
+            axis.set_ylim(0, maximum * 1.08 if maximum else 1)
+            style_axis(axis, scales)
+            axis.tick_params(axis="y", labelsize=7.0, pad=1.2, labelleft=True)
+            continue
         for index, grasp_type in enumerate(types):
             positions = np.arange(len(scales)) - 0.5 + width / 2 + index * width
             for kind, alpha in (("evaluated_grasps", 0.6), ("successful_grasps", 1.0)):
                 heights = [method.average_count(s, grasp_type, kind) for s in scales]
                 axis.bar(positions, heights, width, color=GRASP_COLORS[grasp_type],
                          alpha=alpha, edgecolor="none")
-        axis.set_title(f"Method: {method.label}", loc="left", fontsize=6,
+        axis.set_title(f"Method: {title}", loc="left", fontsize=6,
                        fontweight="bold", pad=0.2)
         axis.set_ylim(0, maximum * 1.08 if maximum else 1)
         style_axis(axis, scales)
         axis.tick_params(axis="y", labelsize=7.0, pad=1.2, labelleft=True)
-    for axis in list(axes.flat)[len(methods):]:
-        axis.set_visible(False)
     for axis in axes[:, 0]:
         axis.set_ylabel("Grasps per scene", fontsize=7, labelpad=0.8)
     for axis in axes[-1]:
@@ -152,7 +164,22 @@ def draw_metrics(subfig, success: list, diversity: list, scales: list[str]) -> N
     for x, title in ((0.275, "(b) Grasp Success Rate Across Object Scales"),
                      (0.755, "(c) Diversity of Grasp Poses")):
         subfig.text(x, 0.995, title, ha="center", va="top", fontsize=6.8, fontweight="bold")
-    handles, labels = axes[0].get_legend_handles_labels()
+    series_styles = {
+        "Heur-Fix": (METHOD_COLORS["Heur-Fix"], "--"),
+        "Heur-Single": (METHOD_COLORS["Heur-Single"], "--"),
+        "Heur-Multi": (METHOD_COLORS["Heur-Multi"], "-"),
+        "HUGS-Single": (METHOD_COLORS["HUGS-Single"], "--"),
+        "HUGS": (METHOD_COLORS["HUGS"], "-"),
+    }
+    present = {label for label, _ in success}
+    handles = [
+        Line2D([], [], color=series_styles[label][0], linestyle=series_styles[label][1],
+               marker="o", markerfacecolor="white", markeredgewidth=0.9,
+               linewidth=1.0, markersize=3.0,
+               alpha=1.0 if label in present else 0.0)
+        for label in series_styles
+    ]
+    labels = list(series_styles)
     legend = subfig.legend(handles, labels, loc="upper center", bbox_to_anchor=(0.5, 0.900),
                            ncol=len(labels), frameon=False, columnspacing=0.5,
                            handlelength=2.35, handletextpad=0.22, fontsize=5.8)

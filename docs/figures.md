@@ -23,8 +23,10 @@ The currently available Shadow runs are:
 
 HUGS raw synthesis records are not included in the current public bundle, so
 HUGS and derived HUGS-Single curves are omitted until those records are
-available. Missing grasp types remain missing; they are not interpreted as
-zero-valued experiments.
+available. The combined figure keeps the paper's four-method synthesis-panel
+layout and reserves the HUGS panel and HUGS/HUGS-Single legend positions, while
+leaving their plots empty. Missing data are not interpreted as zero-valued
+experiments.
 
 ## Synthesis success and diversity
 
