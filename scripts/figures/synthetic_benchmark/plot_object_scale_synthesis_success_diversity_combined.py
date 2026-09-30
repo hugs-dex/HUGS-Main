@@ -18,12 +18,14 @@ from matplotlib.patches import Patch
 if __package__:
     from .synthesis_figure_data import (
         DEFAULT_RUNS, GRASP_TYPES, Method, compute_pca, load_method,
-        scale_sort_key, selected_modes,
+        public_method_label, scale_sort_key, selected_modes,
+        summarize_run_from_raw, write_figure_data,
     )
 else:
     from synthesis_figure_data import (
         DEFAULT_RUNS, GRASP_TYPES, Method, compute_pca, load_method,
-        scale_sort_key, selected_modes,
+        public_method_label, scale_sort_key, selected_modes,
+        summarize_run_from_raw, write_figure_data,
     )
 
 OUTPUT_STEM = "object_scale_synthesis_success_diversity_combined"
@@ -101,19 +103,19 @@ def draw_counts(subfig, methods: list[Method], scales: list[str]) -> None:
     for axis in axes[-1]:
         if axis.get_visible():
             axis.set_xlabel("Object scale (cm)", fontsize=7, labelpad=0.8)
-    subfig.text(0.055, 0.992, "(a) Averaged Synthesis Budgets and Success Counts Per Scene",
+    subfig.text(0.055, 0.995, "(a) Averaged Synthesis Budgets and Success Counts Per Scene",
                 ha="left", va="top", fontsize=6.8, fontweight="bold")
     type_handles = [Patch(facecolor=GRASP_COLORS[g], label=GRASP_LABELS[g]) for g in types]
     count_handles = [Patch(facecolor=TEXT_COLOR, alpha=alpha, label=label)
                      for alpha, label in ((0.6, "Attempts"), (1.0, "Successful"))]
-    for handles, anchor in ((type_handles, 1.008), (count_handles, 0.953)):
+    for handles, anchor in ((type_handles, 0.948), (count_handles, 0.895)):
         legend = subfig.legend(handles=handles, loc="upper right",
                                bbox_to_anchor=(0.998, anchor), ncol=len(handles),
                                frameon=False, fontsize=5.8, columnspacing=0.52,
                                handlelength=0.9, handletextpad=0.25)
         legend.set_in_layout(False)
     subfig.subplots_adjust(left=0.065 if len(methods) == 3 else 0.047,
-                           right=0.998, bottom=0.095, top=0.858,
+                           right=0.998, bottom=0.095, top=0.790,
                            wspace=0.11, hspace=0.18)
 
 
@@ -149,13 +151,13 @@ def draw_metrics(subfig, success: list, diversity: list, scales: list[str]) -> N
         axis.set_ylabel(ylabel, fontsize=7, labelpad=0.8)
     for x, title in ((0.275, "(b) Grasp Success Rate Across Object Scales"),
                      (0.755, "(c) Diversity of Grasp Poses")):
-        subfig.text(x, 0.980, title, ha="center", va="top", fontsize=6.8, fontweight="bold")
+        subfig.text(x, 0.995, title, ha="center", va="top", fontsize=6.8, fontweight="bold")
     handles, labels = axes[0].get_legend_handles_labels()
-    legend = subfig.legend(handles, labels, loc="upper center", bbox_to_anchor=(0.5, 0.925),
+    legend = subfig.legend(handles, labels, loc="upper center", bbox_to_anchor=(0.5, 0.900),
                            ncol=len(labels), frameon=False, columnspacing=0.5,
                            handlelength=2.35, handletextpad=0.22, fontsize=5.8)
     legend.set_in_layout(False)
-    subfig.subplots_adjust(left=0.060, right=0.998, bottom=0.17, top=0.795, wspace=0.15)
+    subfig.subplots_adjust(left=0.060, right=0.998, bottom=0.17, top=0.770, wspace=0.15)
 
 
 def plot_figure(methods: list[Method], success: list, diversity: list) -> plt.Figure:
@@ -172,10 +174,10 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--hand", choices=tuple(DEFAULT_RUNS), default="shadow")
     parser.add_argument("--runs", nargs="+", help="Run names or JSON paths; defaults depend on --hand.")
     parser.add_argument("--labels", nargs="+", help="Display labels matching --runs in order.")
-    parser.add_argument("--figure-data-dir", type=Path, required=True,
-                        help="Directory containing <run>_figure_data.json files for the selected hand.")
+    parser.add_argument("--figure-data-dir", type=Path,
+                        help="Directory containing or receiving <run>_figure_data.json files.")
     parser.add_argument("--stats-root", type=Path,
-                        help="Relocate every cached output_path to this root / run-directory-name.")
+                        help="Public HUGS-DexGraspBench output root for refresh and PCA.")
     parser.add_argument("--output-dir", type=Path,
                         help="Defaults to HUGS-Main/outputs/figures/synthetic_benchmark/<hand>.")
     parser.add_argument("--formats", nargs="+", choices=("pdf", "png", "svg"), default=["pdf"])
@@ -188,6 +190,11 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     group = parser.add_mutually_exclusive_group()
     group.add_argument("--include-both-three", dest="include_both_three", action="store_true", default=True)
     group.add_argument("--exclude-both-three", dest="include_both_three", action="store_false")
+    cache_group = parser.add_mutually_exclusive_group()
+    cache_group.add_argument("--refresh-figure-data", action="store_true",
+                             help="Rebuild schema-v2 caches from public evaluation records.")
+    cache_group.add_argument("--load-figure-data", action="store_true",
+                             help="Use existing caches without rescanning evaluation records.")
     args = parser.parse_args(argv)
     args.runs = args.runs or list(DEFAULT_RUNS[args.hand])
     if args.labels is not None and len(args.labels) != len(args.runs):
@@ -196,6 +203,11 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         parser.error("--dpi must be positive")
     args.output_dir = args.output_dir or (
         Path(__file__).resolve().parents[3] / "outputs/figures/synthetic_benchmark" / args.hand)
+    repo_root = Path(__file__).resolve().parents[3]
+    args.figure_data_dir = args.figure_data_dir or (repo_root / "outputs/figure-data/synthetic_benchmark" / args.hand)
+    args.stats_root = args.stats_root or (repo_root.parent / "HUGS-DexGraspBench" / "output")
+    if not args.refresh_figure_data and not args.load_figure_data:
+        args.refresh_figure_data = True
     return args
 
 
@@ -213,8 +225,12 @@ def main() -> None:
     methods = []
     for index, run in enumerate(args.runs):
         path = Path(run) if Path(run).suffix == ".json" else args.figure_data_dir / f"{run}_figure_data.json"
+        if args.refresh_figure_data and Path(run).suffix != ".json":
+            data = summarize_run_from_raw(run, args.stats_root, args.hand, args.include_both_three)
+            path = write_figure_data(data, args.figure_data_dir)
         label = args.labels[index] if args.labels else None
-        methods.append(load_method(path, args.hand, label, args.include_both_three, args.stats_root))
+        methods.append(load_method(path, args.hand, label or public_method_label(run),
+                                   args.include_both_three, args.stats_root))
     if len({m.label for m in methods}) != len(methods):
         raise ValueError("Method labels must be unique; use --labels for custom comparisons.")
     success, diversity = build_series(methods)

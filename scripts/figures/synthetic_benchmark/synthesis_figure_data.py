@@ -7,6 +7,7 @@ import math
 from collections import defaultdict
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 
@@ -27,6 +28,16 @@ DEFAULT_RUNS = {
 }
 METHOD_LABELS = dict(zip(("single_type", "single_scale", "multi_scale", "human"),
                          ("Heur-Fix", "Heur-Single", "Heur-Multi", "HUGS")))
+PUBLIC_METHOD_LABELS = {
+    "heur_fix": "Heur-Fix",
+    "heur_single": "Heur-Single",
+    "heur_multi": "Heur-Multi",
+    "hugs": "HUGS",
+    "single_type": "Heur-Fix",
+    "single_scale": "Heur-Single",
+    "multi_scale": "Heur-Multi",
+    "human_": "HUGS",
+}
 
 
 @dataclass
@@ -61,6 +72,123 @@ def scale_sort_key(scale: str) -> tuple[int, float | str]:
         return (0, float(scale))
     except ValueError:
         return (1, scale)
+
+
+def object_scale_key(record: dict[str, Any]) -> str:
+    """Return the stable cache key for one object scale."""
+    value = scalar(record, "obj_scale")
+    return "unknown" if value is None else f"{value:.6g}"
+
+
+def public_output_name(run: str, grasp_type: str, hand: str) -> str:
+    """Build the public HUGS-DexGraspBench output directory name."""
+    suffix = f"_{grasp_type}_dual_dummy_arm_{hand}" if grasp_type.startswith("both_") else f"_{grasp_type}_{hand}"
+    return f"{run}{suffix}"
+
+
+def public_method_label(run: str) -> str:
+    """Map a public run name to the paper-facing method label."""
+    lowered = run.lower()
+    for key, label in PUBLIC_METHOD_LABELS.items():
+        if key in lowered:
+            return label
+    return run
+
+
+def summarize_run_from_raw(run: str, stats_root: Path, hand: str,
+                           include_both_three: bool = True) -> dict[str, Any]:
+    """Create the schema-v2 cache consumed by the synthesis figure."""
+    counts: dict[str, dict[str, dict[str, int]]] = defaultdict(
+        lambda: defaultdict(lambda: {"evaluated_grasps": 0, "successful_grasps": 0})
+    )
+    scale_scenes: dict[str, set[str]] = defaultdict(set)
+    successful_types: dict[str, dict[str, set[str]]] = defaultdict(lambda: defaultdict(set))
+    per_type: list[dict[str, Any]] = []
+    selected = [g for g in GRASP_TYPES if include_both_three or g != "both_three"]
+
+    for grasp_type in selected:
+        output_name = public_output_name(run, grasp_type, hand)
+        output_path = stats_root / output_name
+        eval_dir = output_path / "evaluation"
+        evaluated = successful = 0
+        successful_paths: set[str] | None = None
+        if eval_dir.is_dir():
+            print(f"Scanning {run} {grasp_type}: {eval_dir}", flush=True)
+            for eval_path in eval_dir.rglob("*.npy"):
+                record = np.load(eval_path, allow_pickle=True).item()
+                relative = eval_path.relative_to(eval_dir)
+                if "succ_flag" not in record and successful_paths is None:
+                    succ_dir = output_path / "succgrasp"
+                    successful_paths = (
+                        {path.relative_to(succ_dir).as_posix() for path in succ_dir.rglob("*.npy")}
+                        if succ_dir.is_dir() else set()
+                    )
+                scale = object_scale_key(record)
+                scene = relative.parent.as_posix()
+                evaluated += 1
+                counts[scale][grasp_type]["evaluated_grasps"] += 1
+                scale_scenes[scale].add(scene)
+                if is_success(record, relative, successful_paths, 0.0):
+                    successful += 1
+                    counts[scale][grasp_type]["successful_grasps"] += 1
+                    successful_types[scale][scene].add(grasp_type)
+            print(f"  matched {evaluated:,} evaluated records, {successful:,} successful", flush=True)
+        per_type.append({
+            "grasp_type": grasp_type,
+            "output_path": output_name,
+            "evaluated_grasps": evaluated,
+            "successful_grasps": successful,
+            "success_rate": successful / evaluated if evaluated else None,
+        })
+
+    active_types = [g for g in selected if any(counts[s][g]["evaluated_grasps"] for s in counts)]
+    scale_counts = {
+        scale: {grasp_type: dict(values) for grasp_type, values in by_type.items()}
+        for scale, by_type in sorted(counts.items(), key=lambda item: scale_sort_key(item[0]))
+    }
+    scene_scale = {
+        "scale_scene_ids": {
+            scale: sorted(scene_ids) for scale, scene_ids in sorted(scale_scenes.items(), key=lambda item: scale_sort_key(item[0]))
+        },
+        "successful_types_by_scale_scene": {
+            scale: {scene: sorted(types) for scene, types in sorted(scene_map.items())}
+            for scale, scene_map in sorted(successful_types.items(), key=lambda item: scale_sort_key(item[0]))
+        },
+    }
+    total_evaluated = sum(item["evaluated_grasps"] for item in per_type)
+    total_successful = sum(item["successful_grasps"] for item in per_type)
+    return {
+        "schema_version": 2,
+        "source": "public_raw_evaluation_records",
+        "run_name": run,
+        "hand": hand,
+        "grasp_types": active_types,
+        "thresholds": {"hand_geom_dist_thre": 0.0},
+        "per_grasp_type": per_type,
+        "data_counts": {
+            "total_grasps": total_evaluated,
+            "total_successful_grasps": total_successful,
+            "by_grasp_type": {
+                item["grasp_type"]: {
+                    "evaluated_grasps": item["evaluated_grasps"],
+                    "successful_grasps": item["successful_grasps"],
+                }
+                for item in per_type
+            },
+        },
+        "figure_data": {
+            "scale_grasp_type_counts": scale_counts,
+            "scene_scale": scene_scale,
+        },
+    }
+
+
+def write_figure_data(data: dict[str, Any], directory: Path) -> Path:
+    """Write one derived figure-data cache and return its path."""
+    directory.mkdir(parents=True, exist_ok=True)
+    path = directory / f"{data['run_name']}_figure_data.json"
+    path.write_text(json.dumps(data, indent=2) + "\n")
+    return path
 
 
 def load_method(path: Path, hand: str, label: str | None, include_both_three: bool,
@@ -130,7 +258,7 @@ def scalar(record: dict, key: str) -> float | None:
 
 
 def is_success(record: dict, relative: Path, successful_paths: set[str] | None,
-               hand_geom_dist_threshold: float) -> bool:
+               hand_geom_dist_threshold: float = 0.0) -> bool:
     """Use the simulator flag/fallback, then apply the legacy collision filters."""
     succeeded = (bool(np.asarray(record["succ_flag"]).item()) if "succ_flag" in record
                  else relative.as_posix() in (successful_paths or set()))
@@ -147,16 +275,17 @@ def wrist_vector(record: dict) -> np.ndarray | None:
         return None
     slots = []
     for item in pose.reshape(-1, 7):
+        # HUGS records follow MuJoCo's scalar-first [w, x, y, z] contract.
         quat = item[3:]
         norm = np.linalg.norm(quat)
         if not np.isfinite(norm) or norm <= 0:
             return None
         quat = quat / norm
-        if quat[3] < 0:
+        if quat[0] < 0:
             quat = -quat
-        vector_norm = np.linalg.norm(quat[:3])
+        vector_norm = np.linalg.norm(quat[1:])
         rotvec = (np.zeros(3) if vector_norm < 1e-12 else
-                  quat[:3] / vector_norm * (2 * math.atan2(vector_norm, float(quat[3]))))
+                  quat[1:] / vector_norm * (2 * math.atan2(vector_norm, float(quat[0]))))
         slots.append(np.r_[item[:3], rotvec])
     return np.r_[np.zeros(6), slots[0]] if len(slots) == 1 else np.r_[slots[0], slots[1]]
 
