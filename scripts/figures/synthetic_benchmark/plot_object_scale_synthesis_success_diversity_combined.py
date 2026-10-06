@@ -115,19 +115,19 @@ def draw_counts(subfig, methods: list[Method], scales: list[str]) -> None:
     for axis in axes[-1]:
         if axis.get_visible():
             axis.set_xlabel("Object scale (cm)", fontsize=7, labelpad=0.8)
-    subfig.text(0.055, 0.995, "(a) Averaged Synthesis Budgets and Success Counts Per Scene",
+    subfig.text(0.055, 0.992, "(a) Averaged Synthesis Budgets and Success Counts Per Scene",
                 ha="left", va="top", fontsize=6.8, fontweight="bold")
     type_handles = [Patch(facecolor=GRASP_COLORS[g], label=GRASP_LABELS[g]) for g in types]
     count_handles = [Patch(facecolor=TEXT_COLOR, alpha=alpha, label=label)
                      for alpha, label in ((0.6, "Attempts"), (1.0, "Successful"))]
-    for handles, anchor in ((type_handles, 0.948), (count_handles, 0.895)):
+    for handles, anchor, spacing in ((type_handles, 1.008, 0.52),
+                                     (count_handles, 0.953, 0.62)):
         legend = subfig.legend(handles=handles, loc="upper right",
                                bbox_to_anchor=(0.998, anchor), ncol=len(handles),
-                               frameon=False, fontsize=5.8, columnspacing=0.52,
+                               frameon=False, fontsize=5.8, columnspacing=spacing,
                                handlelength=0.9, handletextpad=0.25)
         legend.set_in_layout(False)
-    subfig.subplots_adjust(left=0.065 if len(methods) == 3 else 0.047,
-                           right=0.998, bottom=0.095, top=0.790,
+    subfig.subplots_adjust(left=0.047, right=0.998, bottom=0.095, top=0.858,
                            wspace=0.11, hspace=0.18)
 
 
@@ -159,11 +159,12 @@ def draw_metrics(subfig, success: list, diversity: list, scales: list[str]) -> N
                       linewidth=1.0, markersize=3.0)
         axis.set_ylim(0, maximum)
         style_axis(axis, scales)
+        axis.tick_params(axis="x", pad=0.1)
         axis.set_xlabel("Object scale (cm)", fontsize=7, labelpad=0)
         axis.set_ylabel(ylabel, fontsize=7, labelpad=0.8)
     for x, title in ((0.275, "(b) Grasp Success Rate Across Object Scales"),
                      (0.755, "(c) Diversity of Grasp Poses")):
-        subfig.text(x, 0.995, title, ha="center", va="top", fontsize=6.8, fontweight="bold")
+        subfig.text(x, 0.980, title, ha="center", va="top", fontsize=6.8, fontweight="bold")
     series_styles = {
         "Heur-Fix": (METHOD_COLORS["Heur-Fix"], "--"),
         "Heur-Single": (METHOD_COLORS["Heur-Single"], "--"),
@@ -171,20 +172,18 @@ def draw_metrics(subfig, success: list, diversity: list, scales: list[str]) -> N
         "HUGS-Single": (METHOD_COLORS["HUGS-Single"], "--"),
         "HUGS": (METHOD_COLORS["HUGS"], "-"),
     }
-    present = {label for label, _ in success}
     handles = [
         Line2D([], [], color=series_styles[label][0], linestyle=series_styles[label][1],
                marker="o", markerfacecolor="white", markeredgewidth=0.9,
-               linewidth=1.0, markersize=3.0,
-               alpha=1.0 if label in present else 0.0)
+               linewidth=1.0, markersize=3.0)
         for label in series_styles
     ]
     labels = list(series_styles)
-    legend = subfig.legend(handles, labels, loc="upper center", bbox_to_anchor=(0.5, 0.900),
+    legend = subfig.legend(handles, labels, loc="upper center", bbox_to_anchor=(0.5, 0.925),
                            ncol=len(labels), frameon=False, columnspacing=0.5,
                            handlelength=2.35, handletextpad=0.22, fontsize=5.8)
     legend.set_in_layout(False)
-    subfig.subplots_adjust(left=0.060, right=0.998, bottom=0.17, top=0.770, wspace=0.15)
+    subfig.subplots_adjust(left=0.060, right=0.998, bottom=0.17, top=0.795, wspace=0.15)
 
 
 def plot_figure(methods: list[Method], success: list, diversity: list) -> plt.Figure:
@@ -211,7 +210,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--dpi", type=int, default=600)
     parser.add_argument("--diversity-feature", choices=("wrist",), default="wrist",
                         help="12D wrist pose PCA; wrist_joint is outside this figure's scope.")
-    parser.add_argument("--font-family", default="DejaVu Serif")
+    parser.add_argument("--font-family", default="Times New Roman")
     parser.add_argument("--font-files", type=Path, nargs="+",
                         help="Optional local font files to register (e.g. Times New Roman).")
     group = parser.add_mutually_exclusive_group()

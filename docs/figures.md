@@ -24,7 +24,7 @@ The currently available Shadow runs are:
 HUGS raw synthesis records are not included in the current public bundle, so
 HUGS and derived HUGS-Single curves are omitted until those records are
 available. The combined figure keeps the paper's four-method synthesis-panel
-layout and reserves the HUGS panel and HUGS/HUGS-Single legend positions, while
+layout and retains the HUGS panel and HUGS/HUGS-Single legend symbols, while
 leaving their plots empty. Missing data are not interpreted as zero-valued
 experiments.
 
@@ -32,6 +32,12 @@ experiments.
 
 Run from HUGS-Main after the public component repositories are checked out as
 siblings:
+
+The default font is Times New Roman, matching the original figure's typography.
+The commands below register local regular and bold font files; adjust these
+paths to your installed fonts. If the font is already available to Matplotlib,
+`--font-files` can be omitted. Using `--font-family "DejaVu Serif"` without
+`--font-files` is an alternative, but changes the figure's appearance.
 
 ```bash
 cd /path/to/hugs-public/HUGS-Main
@@ -49,6 +55,9 @@ python scripts/figures/synthetic_benchmark/plot_object_scale_synthesis_success_d
   --dpi 600 \
   --diversity-feature wrist \
   --exclude-both-three \
+  --font-files \
+    "$HOME/.local/share/fonts/msttcorefonts/Times_New_Roman.ttf" \
+    "$HOME/.local/share/fonts/msttcorefonts/Times_New_Roman_Bold.ttf" \
   --refresh-figure-data
 ```
 
@@ -72,6 +81,9 @@ python scripts/figures/synthetic_benchmark/plot_object_scale_synthesis_success_d
   --dpi 600 \
   --diversity-feature wrist \
   --exclude-both-three \
+  --font-files \
+    "$HOME/.local/share/fonts/msttcorefonts/Times_New_Roman.ttf" \
+    "$HOME/.local/share/fonts/msttcorefonts/Times_New_Roman_Bold.ttf" \
   --load-figure-data
 ```
 
