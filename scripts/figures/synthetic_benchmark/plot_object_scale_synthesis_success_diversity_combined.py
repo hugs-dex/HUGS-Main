@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Plot object-scale synthesis counts, success rates, and scene-level wrist PCA."""
+"""Plot object-scale synthesis counts, success rates, and scene-level grasp PCA."""
 
 from __future__ import annotations
 
@@ -18,18 +18,19 @@ from matplotlib.patches import Patch
 
 if __package__:
     from .synthesis_figure_data import (
-        DEFAULT_RUNS, GRASP_TYPES, Method, compute_pca, load_method,
+        DEFAULT_RUNS, GRASP_TYPES, HAND_JOINT_DIM_PER_HAND, Method, compute_pca, load_method,
         public_method_label, scale_sort_key, selected_modes,
         summarize_run_from_raw, write_figure_data,
     )
 else:
     from synthesis_figure_data import (
-        DEFAULT_RUNS, GRASP_TYPES, Method, compute_pca, load_method,
+        DEFAULT_RUNS, GRASP_TYPES, HAND_JOINT_DIM_PER_HAND, Method, compute_pca, load_method,
         public_method_label, scale_sort_key, selected_modes,
         summarize_run_from_raw, write_figure_data,
     )
 
 OUTPUT_STEM = "object_scale_synthesis_success_diversity_combined"
+WRIST_JOINT_OUTPUT_STEM = "object_scale_synthesis_success_wrist_joint_diversity_combined"
 GRASP_LABELS = {
     "right_two": "Single-Two", "right_three": "Single-Three",
     "right_full": "Single-Full", "both_three": "Both-Three", "both_full": "Both-Full",
@@ -131,14 +132,16 @@ def draw_counts(subfig, methods: list[Method], scales: list[str]) -> None:
                            wspace=0.11, hspace=0.18)
 
 
-def build_series(methods: list[Method]) -> tuple[list, list]:
+def build_series(methods: list[Method], diversity_feature: str,
+                 joint_dim_per_hand: int | None) -> tuple[list, list]:
     """Derive HUGS-Single while reading each HUGS evaluation record only once."""
     single = next((m for m in methods if m.label == "Heur-Single"), None)
     modes = selected_modes(single) if single is not None else None
     success, diversity = [], []
     for method in methods:
         derive_single = method.label == "HUGS" and modes is not None
-        pca, single_pca = compute_pca(method, modes if derive_single else None)
+        pca, single_pca = compute_pca(method, modes if derive_single else None,
+                                    diversity_feature, joint_dim_per_hand)
         if derive_single:
             success.append(("HUGS-Single", method.success_rates(modes)))
             diversity.append(("HUGS-Single", single_pca))
@@ -208,8 +211,8 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
                         help="Defaults to HUGS-Main/outputs/figures/synthetic_benchmark/<hand>.")
     parser.add_argument("--formats", nargs="+", choices=("pdf", "png", "svg"), default=["pdf"])
     parser.add_argument("--dpi", type=int, default=600)
-    parser.add_argument("--diversity-feature", choices=("wrist",), default="wrist",
-                        help="12D wrist pose PCA; wrist_joint is outside this figure's scope.")
+    parser.add_argument("--diversity-feature", choices=("wrist", "wrist_joint"), default="wrist_joint",
+                        help="PCA feature: wrist pose plus finger joints (default), or wrist pose only.")
     parser.add_argument("--font-family", default="Times New Roman")
     parser.add_argument("--font-files", type=Path, nargs="+",
                         help="Optional local font files to register (e.g. Times New Roman).")
@@ -259,11 +262,13 @@ def main() -> None:
                                    args.include_both_three, args.stats_root))
     if len({m.label for m in methods}) != len(methods):
         raise ValueError("Method labels must be unique; use --labels for custom comparisons.")
-    success, diversity = build_series(methods)
+    joint_dim = HAND_JOINT_DIM_PER_HAND[args.hand] if args.diversity_feature == "wrist_joint" else None
+    success, diversity = build_series(methods, args.diversity_feature, joint_dim)
     fig = plot_figure(methods, success, diversity)
     args.output_dir.mkdir(parents=True, exist_ok=True)
+    stem = WRIST_JOINT_OUTPUT_STEM if args.diversity_feature == "wrist_joint" else OUTPUT_STEM
     for extension in args.formats:
-        path = args.output_dir / f"{OUTPUT_STEM}.{extension}"
+        path = args.output_dir / f"{stem}.{extension}"
         fig.savefig(path, dpi=args.dpi)
         print(path)
     plt.close(fig)

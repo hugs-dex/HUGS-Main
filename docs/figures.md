@@ -53,7 +53,7 @@ python scripts/figures/synthetic_benchmark/plot_object_scale_synthesis_success_d
   --output-dir outputs/figures/synthetic-benchmark/shadow \
   --formats pdf png \
   --dpi 600 \
-  --diversity-feature wrist \
+  --diversity-feature wrist_joint \
   --exclude-both-three \
   --font-files \
     "$HOME/.local/share/fonts/msttcorefonts/Times_New_Roman.ttf" \
@@ -79,7 +79,7 @@ python scripts/figures/synthetic_benchmark/plot_object_scale_synthesis_success_d
   --output-dir outputs/figures/synthetic-benchmark/shadow \
   --formats pdf png \
   --dpi 600 \
-  --diversity-feature wrist \
+  --diversity-feature wrist_joint \
   --exclude-both-three \
   --font-files \
     "$HOME/.local/share/fonts/msttcorefonts/Times_New_Roman.ttf" \
@@ -92,8 +92,30 @@ absolute paths. The adapter applies the evaluation `succ_flag` (or the
 `succgrasp` fallback for older records), removes records with positive
 `self_pene`, and uses the public hand-geometry threshold. Wrist pose records
 use the HUGS `[w, x, y, z]` quaternion contract. Object scales are stored in
-metres and displayed in centimetres; diversity is the scene-averaged first
-principal-component variance ratio of the successful wrist poses.
+metres and displayed in centimetres.
+
+The default diversity feature is `wrist_joint`: 12 wrist-pose dimensions
+(left xyz + rotation vector, then right xyz + rotation vector), followed by
+left and right finger-joint slots from `grasp_joint_pos`. Shadow uses 22 joints
+per hand (56 total dimensions); Leap-SP uses 16 (44 total dimensions).
+`wrist_body_names` identifies wrist order; older records without it use the
+public producer's right-then-left order. `joint_names` is required in joint
+mode: dummy-arm names are excluded, and finger joints are ordered by their
+name suffix within each hand so record ordering cannot change PCA columns.
+Absent hands have zero-filled slots. Invalid joint-mode features raise an
+error rather than silently dropping successful grasps.
+
+For each scene, PCA centers the successful-grasp vectors without feature
+standardization or weighting, then computes the first principal-component
+variance ratio. The plotted value is the mean of those ratios across scenes
+at each scale. Positions are in metres; rotations and finger angles are in
+radians, so joint mode changes the metric as well as its dimensionality.
+
+Joint mode writes `object_scale_synthesis_success_wrist_joint_diversity_combined`
+in the requested formats. Use `--diversity-feature wrist` for wrist-only PCA,
+which retains the `object_scale_synthesis_success_diversity_combined` filename.
+The two modes share counts, success rates, and layout; their outputs are
+separate to avoid confusing different diversity metrics.
 
 The generated `outputs/` directory is ignored by Git. Do not commit caches,
 plots, raw evaluation records, checkpoints, or other run products.

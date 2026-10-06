@@ -1,4 +1,4 @@
-"""Read schema-v2 figure counts and compute scene-averaged wrist-pose PCA."""
+"""Read schema-v2 figure counts and compute scene-averaged grasp-pose PCA."""
 
 from __future__ import annotations
 
@@ -12,6 +12,7 @@ from typing import Any
 import numpy as np
 
 GRASP_TYPES = ("right_two", "right_three", "right_full", "both_three", "both_full")
+HAND_JOINT_DIM_PER_HAND = {"shadow": 22, "leap_sp": 16}
 DEFAULT_RUNS = {
     "shadow": (
         "single_type_DGN2k_1000_shadow",
@@ -269,12 +270,22 @@ def is_success(record: dict, relative: Path, successful_paths: set[str] | None,
 
 
 def wrist_vector(record: dict) -> np.ndarray | None:
-    """Return [left xyz+rotvec, right xyz+rotvec]; single hands use the right slot."""
+    """Return [left xyz+rotvec, right xyz+rotvec], zero-padding absent hands."""
     pose = np.asarray(record.get("grasp_global_pose", []), dtype=np.float64).reshape(-1)
-    if pose.size < 7 or pose.size % 7 or not np.isfinite(pose).all():
+    if pose.size not in (7, 14) or not np.isfinite(pose).all():
         return None
-    slots = []
-    for item in pose.reshape(-1, 7):
+    poses = pose.reshape(-1, 7)
+    names = record.get("wrist_body_names")
+    if names is None:
+        # Public producer configurations store right wrist before left wrist.
+        sides = ["rh", "lh"][:len(poses)]
+    else:
+        sides = [str(name).split("_", 1)[0] for name in names]
+    if (len(sides) != len(poses) or len(set(sides)) != len(sides)
+            or any(side not in ("lh", "rh") for side in sides)):
+        return None
+    slots = {"lh": np.zeros(6), "rh": np.zeros(6)}
+    for side, item in zip(sides, poses):
         # HUGS records follow MuJoCo's scalar-first [w, x, y, z] contract.
         quat = item[3:]
         norm = np.linalg.norm(quat)
@@ -286,16 +297,70 @@ def wrist_vector(record: dict) -> np.ndarray | None:
         vector_norm = np.linalg.norm(quat[1:])
         rotvec = (np.zeros(3) if vector_norm < 1e-12 else
                   quat[1:] / vector_norm * (2 * math.atan2(vector_norm, float(quat[0]))))
-        slots.append(np.r_[item[:3], rotvec])
-    return np.r_[np.zeros(6), slots[0]] if len(slots) == 1 else np.r_[slots[0], slots[1]]
+        slots[side] = np.r_[item[:3], rotvec]
+    return np.r_[slots["lh"], slots["rh"]]
 
 
-def pca_ratio(vectors: list[np.ndarray]) -> float | None:
+def hand_joint_slots(record: dict, joint_dim_per_hand: int) -> np.ndarray | None:
+    """Return fixed left/right finger slots, ordered by joint-name suffix.
+
+    Public joint positions omit dummy-arm joints, while joint_names may retain
+    them. Names are required to align columns across grasp types and records.
+    """
+    if joint_dim_per_hand <= 0:
+        raise ValueError("joint_dim_per_hand must be positive")
+    values = np.asarray(record.get("grasp_joint_pos", []), dtype=np.float64).reshape(-1)
+    names = [str(name) for name in record.get("joint_names", [])]
+    hand_names = [name for name in names if name.startswith(("rh_", "lh_"))]
+    if not values.size or not np.isfinite(values).all() or len(set(names)) != len(names):
+        return None
+    if len(names) == values.size:
+        named_values = {name: value for name, value in zip(names, values) if name in hand_names}
+    elif len(hand_names) == values.size:
+        named_values = dict(zip(hand_names, values))
+    else:
+        return None
+    slots = []
+    suffixes = []
+    for side in ("lh_", "rh_"):
+        selected = sorted(name for name in named_values if name.startswith(side))
+        if not selected:
+            slots.append(np.zeros(joint_dim_per_hand))
+            continue
+        if len(selected) != joint_dim_per_hand:
+            return None
+        suffixes.append([name[3:] for name in selected])
+        slots.append(np.asarray([named_values[name] for name in selected]))
+    if not suffixes or (len(suffixes) == 2 and suffixes[0] != suffixes[1]):
+        return None
+    return np.concatenate(slots)
+
+
+def wrist_joint_vector(record: dict, joint_dim_per_hand: int) -> np.ndarray | None:
+    """Append fixed left/right finger-joint slots to the 12D wrist feature."""
+    wrist = wrist_vector(record)
+    joints = hand_joint_slots(record, joint_dim_per_hand)
+    if wrist is None or joints is None:
+        return None
+    # Both feature blocks must describe the same hands.
+    pose_count = np.asarray(record.get("grasp_global_pose", [])).size // 7
+    names = record.get("wrist_body_names")
+    if names is None:
+        names = ["rh", "lh"][:pose_count]
+    wrist_sides = {str(name).split("_", 1)[0] for name in names}
+    joint_sides = {str(name).split("_", 1)[0] for name in record.get("joint_names", [])
+                   if str(name).startswith(("rh_", "lh_"))}
+    if wrist_sides != joint_sides:
+        return None
+    return np.r_[wrist, joints]
+
+
+def pca_ratio(vectors: list[np.ndarray], feature_dim: int = 12) -> float | None:
     """Return PC1 variance percent after centering, without feature standardization."""
     if not vectors:
         return None
     matrix = np.asarray(vectors, dtype=np.float64)
-    if matrix.ndim != 2 or matrix.shape[1] != 12 or not np.isfinite(matrix).all():
+    if matrix.ndim != 2 or matrix.shape[1] != feature_dim or not np.isfinite(matrix).all():
         return None
     centered = matrix - matrix.mean(axis=0, keepdims=True)
     weights = np.linalg.svd(centered, full_matrices=False, compute_uv=False) ** 2
@@ -303,22 +368,28 @@ def pca_ratio(vectors: list[np.ndarray]) -> float | None:
     return 100.0 if total <= 0 else float(weights[0] / total * 100)
 
 
-def mean_scene_pca(scene_vectors: dict, scales: list[str]) -> dict[str, float]:
+def mean_scene_pca(scene_vectors: dict, scales: list[str], feature_dim: int = 12) -> dict[str, float]:
     result = {}
     for scale in scales:
-        ratios = [pca_ratio(vectors) for vectors in scene_vectors.get(scale, {}).values()]
+        ratios = [pca_ratio(vectors, feature_dim) for vectors in scene_vectors.get(scale, {}).values()]
         valid = [value for value in ratios if value is not None]
         # Preserve the original convention for a scale without successful scenes.
         result[scale] = float(np.mean(valid)) if valid else 0.0
     return result
 
 
-def compute_pca(method: Method, modes: dict[str, str] | None = None) -> tuple[dict, dict]:
+def compute_pca(method: Method, modes: dict[str, str] | None = None,
+                diversity_feature: str = "wrist", joint_dim_per_hand: int | None = None) -> tuple[dict, dict]:
     """Scan each type once, collecting both pooled-mode and optional HUGS-Single scenes.
 
     Missing or incomplete raw inputs raise before rendering. Counts are reconciled
     with the cache per scale/type so PCA and success panels use the same records.
     """
+    if diversity_feature not in ("wrist", "wrist_joint"):
+        raise ValueError(f"Unsupported diversity feature: {diversity_feature}")
+    if diversity_feature == "wrist_joint" and (joint_dim_per_hand is None or joint_dim_per_hand <= 0):
+        raise ValueError("joint_dim_per_hand is required for wrist_joint PCA")
+    feature_dim = 12 if diversity_feature == "wrist" else 12 + 2 * joint_dim_per_hand
     vectors = defaultdict(lambda: defaultdict(list))
     single_vectors = defaultdict(lambda: defaultdict(list))
     invalid = 0
@@ -347,8 +418,12 @@ def compute_pca(method: Method, modes: dict[str, str] | None = None) -> tuple[di
             if not is_success(record, relative, fallback, method.hand_geom_dist_threshold):
                 continue
             successful[scale] += 1
-            vector = wrist_vector(record)
+            vector = (wrist_vector(record) if diversity_feature == "wrist" else
+                      wrist_joint_vector(record, joint_dim_per_hand))
             if vector is None:
+                if diversity_feature == "wrist_joint":
+                    raise ValueError(f"Invalid wrist/joint feature in {eval_path}; "
+                                     "check wrist_body_names, joint_names, and grasp_joint_pos")
                 invalid += 1
                 continue
             scene = relative.parent.as_posix()
@@ -365,4 +440,5 @@ def compute_pca(method: Method, modes: dict[str, str] | None = None) -> tuple[di
     if invalid:
         print(f"Warning: {method.label}: skipped {invalid} successful grasps with invalid wrist poses")
     scales = list(method.counts)
-    return mean_scene_pca(vectors, scales), mean_scene_pca(single_vectors, scales)
+    return (mean_scene_pca(vectors, scales, feature_dim),
+            mean_scene_pca(single_vectors, scales, feature_dim))
