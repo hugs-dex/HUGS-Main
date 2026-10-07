@@ -45,7 +45,7 @@ All three component repositories are public. Choose the entry point for your tas
 | I want to… | Repository and quick start | Required inputs |
 | --- | --- | --- |
 | Generate robot grasps | [HUGS-BODex](https://github.com/hugs-dex/HUGS-BODex#quick-start) | Object scenes; exported priors for human initialization |
-| Evaluate and filter grasps | [HUGS-DexGraspBench](https://github.com/hugs-dex/HUGS-DexGraspBench#producer-workflows) | Producer grasps and matching object assets |
+| Evaluate and filter grasps | [HUGS-DexGraspBench](https://github.com/hugs-dex/HUGS-DexGraspBench#headless-evaluation) | Producer grasps and matching object assets |
 | Learn and export Human Priors | [HUGS-DexLearn](https://github.com/hugs-dex/HUGS-DexLearn#human-prior) | Formatted human data and object scenes |
 | Train a robot grasp model | [HUGS-DexLearn](https://github.com/hugs-dex/HUGS-DexLearn#robot-grasp) | Prepared robot grasp data and hand assets |
 
