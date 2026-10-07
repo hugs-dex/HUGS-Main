@@ -40,7 +40,7 @@ Current downloads are listed separately in [Data](#data).
 
 ## Code
 
-All three component repositories are public. Choose the entry point for your task:
+All component repositories are public. Choose the entry point for your task:
 
 | I want to… | Repository and quick start | Required inputs |
 | --- | --- | --- |
@@ -48,6 +48,7 @@ All three component repositories are public. Choose the entry point for your tas
 | Evaluate and filter grasps | [HUGS-DexGraspBench](https://github.com/hugs-dex/HUGS-DexGraspBench#headless-evaluation) | Producer grasps and matching object assets |
 | Learn and export Human Priors | [HUGS-DexLearn](https://github.com/hugs-dex/HUGS-DexLearn#human-prior) | Formatted human data and object scenes |
 | Train a robot grasp model | [HUGS-DexLearn](https://github.com/hugs-dex/HUGS-DexLearn#robot-grasp) | Prepared robot grasp data and hand assets |
+| Prepare custom object assets or render new partial point clouds | [MeshProcess](https://github.com/hugs-dex/MeshProcess#pipeline-steps) | Raw object meshes for processing; prepared scenes for rendering |
 
 ### Getting Started
 
@@ -66,6 +67,18 @@ The complete workflow is:
 
 See the [cross-repository workflow](docs/workflows.md) for artifact paths and
 handoffs. You can enter at any stage with compatible inputs already prepared.
+
+### Custom Objects and Point Clouds
+
+Reproducing HUGS with the released object assets and partial point clouds does
+not require running MeshProcess. Download these from [Data](#data).
+
+For your own objects, use [MeshProcess](https://github.com/hugs-dex/MeshProcess)
+to process raw meshes, build collision assets, generate scene configurations,
+and sample complete point clouds. Use its rendering step to create new partial
+point clouds from prepared scenes, including new views of existing objects.
+Follow the [pipeline steps](https://github.com/hugs-dex/MeshProcess#pipeline-steps)
+or the [prepared-scene rendering guide](https://github.com/hugs-dex/MeshProcess/blob/main/docs/hugs_workflow.md#render-prepared-scenes).
 
 ## Data
 
@@ -94,6 +107,7 @@ is prepared using its [documented data setup](https://github.com/hugs-dex/HUGS-B
 - [BODex installation and synthesis](https://github.com/hugs-dex/HUGS-BODex#documentation)
 - [Bench conversion and evaluation](https://github.com/hugs-dex/HUGS-DexGraspBench#documentation)
 - [DexLearn training and export](https://github.com/hugs-dex/HUGS-DexLearn#documentation)
+- [MeshProcess custom assets and point-cloud rendering](https://github.com/hugs-dex/MeshProcess#documentation)
 - [Figure reproduction](docs/figures.md) — requires the corresponding raw evaluation records
 
 Component validation notes describe their recorded checks. A complete reproduction
