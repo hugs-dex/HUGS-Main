@@ -22,7 +22,7 @@ authors:
 repository-code: "https://github.com/hugs-dex/HUGS-Main"
 url: "https://hugs-dex.github.io/"
 preferred-citation:
-  type: article
+  type: conference-paper
   title: "HUGS: Guiding Unified Dexterous Grasp Synthesis Across Modes and Scales via Learned Human Priors"
   authors:
     - family-names: Yu
@@ -41,6 +41,6 @@ preferred-citation:
       given-names: Yi
     - family-names: Li
       given-names: Xiang
-  journal: "arXiv preprint arXiv:2607.04554"
+  collection-title: "Conference on Robot Learning (CoRL)"
   year: 2026
   url: "https://arxiv.org/abs/2607.04554"

@@ -10,125 +10,110 @@
 </p>
 
 <p align="center">
-  <a href="https://hugs-dex.github.io/">Project Page</a> •
-  <a href="https://arxiv.org/abs/2607.04554">Paper</a> •
-  <a href="https://hugs-dex.github.io/#overview">Video</a> •
-  <a href="https://hugs-dex.github.io/blog.html">Blog</a> •
-  <a href="https://huggingface.co/datasets/MingruiYu/HUGS">Object Assets</a> •
-  <a href="https://huggingface.co/datasets/MingruiYu/HUGS-Human">Human Data</a>
+  <a href="https://hugs-dex.github.io/">Project Page</a> ·
+  <a href="https://arxiv.org/abs/2607.04554">Paper</a> ·
+  <a href="#code">Code</a> ·
+  <a href="#data">Data</a>
 </p>
 
 <p align="center">
   <a href="https://hugs-dex.github.io/">
-    <img src="https://hugs-dex.github.io/figures/teaser.png" width="100%" alt="HUGS generates dexterous grasps across object scales, from two-finger pinches to bimanual grasps.">
+    <img src="assets/figures/teaser.jpg" width="100%" alt="HUGS generates dexterous grasps across object scales, from two-finger pinches to bimanual grasps.">
   </a>
 </p>
 
 **From small screws to large boxes.** HUGS learns human grasp preferences to guide
-robot grasp synthesis across contact modes and object scales. It predicts plausible
-contact modes and wrist initializations, then uses force-closure-aware optimization
-to generate robot-specific grasps.
+robot grasp synthesis across contact modes and object scales, combining learned
+initializations with force-closure-aware optimization.
 
-**HUGS-Main** is the project entry point for code, datasets, and reproduction guides.
-The implementations live in the component repositories below.
+**HUGS-Main is the project hub** for the paper, website, datasets, component
+repositories, and reproduction guides. Watch the [video](https://hugs-dex.github.io/#overview)
+or read the [project blog](https://hugs-dex.github.io/blog.html).
 
-## Overview
+## Highlights
 
-HUGS connects three stages:
-
-1. **Learn human priors.** Learn object-conditioned contact-mode preferences and
-   wrist poses from a compact human grasp dataset.
-2. **Synthesize robot grasps.** Use these priors to guide robot-specific grasp
-   optimization for single-hand and bimanual configurations.
-3. **Evaluate and learn.** Filter grasps in simulation and use the resulting data
-   to train grasp-generation models.
-
-<p align="center">
-  <img src="https://hugs-dex.github.io/figures/overview.png" width="100%" alt="HUGS pipeline: human demonstrations, object-conditioned priors, and robot grasp optimization.">
-</p>
+- **Human-guided synthesis.** Learn contact-mode preferences and hand pose priors
+  from human grasps to initialize robot-specific optimization.
+- **Across modes and scales.** Generate single-hand and bimanual grasps with
+  Shadow Hand and Leap-SP, from small pinches to large-object grasps.
+- **From synthesis to learning.** Filter candidates in MuJoCo, assemble successful
+  grasps into training data, and evaluate learned robot grasp models.
 
 The paper reports **1.8K human grasps over 304 objects** and **3.2M synthesized
-robot grasps over 157K scenes**, spanning object half-diagonal lengths of
-**2–30 cm**. These are paper results; the currently available downloads are listed
-separately below.
+robot grasps over 157K scenes**, with object half-diagonal lengths of **2–30 cm**.
+Current downloads are listed separately in [Data](#data).
 
 ## Code
 
-| Repository | What it provides | Availability |
+All three component repositories are public. Choose the entry point for your task:
+
+| I want to… | Repository and quick start | Required inputs |
 | --- | --- | --- |
-| **HUGS-Main** (this repository) | Project overview, component navigation, and dataset links | Public |
-| [**HUGS-BODex**](https://github.com/hugs-dex/HUGS-BODex) | GPU-accelerated grasp synthesis and visualization for Shadow Hand and Leap-SP | Public |
-| [**HUGS-DexGraspBench**](https://github.com/hugs-dex/HUGS-DexGraspBench) | MuJoCo evaluation, format conversion, and successful-grasp collection | Public |
-| **HUGS-DexLearn** | Human-prior and robot grasp-model training, sampling, and export | In preparation |
+| Generate robot grasps | [HUGS-BODex](https://github.com/hugs-dex/HUGS-BODex#quick-start) | Object scenes; exported priors for human initialization |
+| Evaluate and filter grasps | [HUGS-DexGraspBench](https://github.com/hugs-dex/HUGS-DexGraspBench#producer-workflows) | Producer grasps and matching object assets |
+| Learn and export Human Priors | [HUGS-DexLearn](https://github.com/hugs-dex/HUGS-DexLearn#human-prior) | Formatted human data and object scenes |
+| Train a robot grasp model | [HUGS-DexLearn](https://github.com/hugs-dex/HUGS-DexLearn#robot-grasp) | Prepared robot grasp data and hand assets |
 
-### Getting started
+### Getting Started
 
-Choose the component for your workflow and follow its installation guide. Each
-component has its own environment; this entry repository needs no Python installation.
+Clone the component you need and follow its README. Each component has its own
+environment; browsing this project hub requires no Python installation.
+The [BODex surface example](https://github.com/hugs-dex/HUGS-BODex#quick-start)
+provides a synthesis starting point without a learned prior or checkpoint.
 
-```bash
-mkdir hugs-workspace
-cd hugs-workspace
-git clone https://github.com/hugs-dex/HUGS-Main.git
+The complete workflow is:
 
-# Grasp synthesis
-git clone https://github.com/hugs-dex/HUGS-BODex.git
+1. **DexLearn Human:** train and export contact-mode scores and hand pose priors.
+2. **BODex:** generate robot grasps using those priors, or surface initialization.
+3. **Bench:** convert and evaluate the grasps, then collect successful samples.
+4. **DexLearn Robot:** train on the assembled samples and generate robot grasps.
+5. **Bench:** evaluate the robot model's saved samples.
 
-# Simulation evaluation (optional)
-git clone https://github.com/hugs-dex/HUGS-DexGraspBench.git
-```
-
-Continue with the component README to initialize its submodules and install its
-dependencies:
-
-- **Generate grasps:** [HUGS-BODex installation and examples](https://github.com/hugs-dex/HUGS-BODex#installation).
-  Start with `surface_sample` initialization, which does not require human priors.
-- **Evaluate grasps:** [HUGS-DexGraspBench workflows](https://github.com/hugs-dex/HUGS-DexGraspBench#producer-workflows).
-  Supply generated grasp records and the matching object assets.
-- **Train or export priors:** HUGS-DexLearn instructions will be linked when the
-  public repository is available.
-
-### Release status
-
-The release is being prepared in stages. Current limitations:
-
-- The published HUGS asset archives do not include
-  `tabletop_scene_object_heights.jsonl`, required by the default synthesis suites.
-  Surface synthesis needs a height cache computed from the selected public scenes
-  and meshes, passed via `task.scene_source.object_height_record_path`.
-  The public setup instructions for this preparation step are still pending.
-- Exported human priors, model checkpoints, and the full synthesized robot-grasp
-  dataset are not included in the current downloads. Human-initialized synthesis
-  requires a prior export matching the scene IDs.
-- Planning with a separately generated height cache has been checked for both hand
-  suites. End-to-end synthesis and learning using only public inputs are still
-  being validated; a successful dry-run is not a solver or reproduction result.
+See the [cross-repository workflow](docs/workflows.md) for artifact paths and
+handoffs. You can enter at any stage with compatible inputs already prepared.
 
 ## Data
 
-| Dataset | Available content |
+| Download | Available content |
 | --- | --- |
-| [**HUGS**](https://huggingface.co/datasets/MingruiYu/HUGS) | Processed DGN_2k object assets, scene configurations, splits, and partial point clouds |
-| [**HUGS-Human**](https://huggingface.co/datasets/MingruiYu/HUGS-Human) | Human grasp processing inputs and formatted training data |
+| [HUGS](https://huggingface.co/datasets/MingruiYu/HUGS) | Processed DGN_2k object assets, scene configurations, splits, and partial point clouds |
+| [HUGS-Human](https://huggingface.co/datasets/MingruiYu/HUGS-Human) | Human grasp processing inputs and formatted training data |
 
-See each dataset card for download instructions, file layout, checksums, and usage
-terms. Keep data outside the code repositories, preserve the archive directory
-structure, and record the dataset revision used for each experiment. Write caches
-and outputs to a separate run directory.
+Follow the dataset cards for extraction, checksums, and usage terms. Components
+share the dataset-root convention:
 
-HUGS-Human training records are not exported synthesis priors. MANO models and
-formatted canonical meshes are not included; workflows that need these resources
-require separate preparation.
+```bash
+export HUGS_DATASET_ROOT=/path/to/hugs-dataset
+```
+
+See [data preparation](docs/data.md) for directory layout and task-specific assets.
+The current downloads do not include model checkpoints, exported human priors,
+or the full synthesized robot-grasp dataset. MANO models and formatted canonical
+meshes require separate preparation where needed. BODex's generated height table
+is prepared using its [documented data setup](https://github.com/hugs-dex/HUGS-BODex#prepare-data).
+
+## Documentation
+
+- [Cross-repository workflow and output paths](docs/workflows.md)
+- [Data, assets, and availability](docs/data.md)
+- [BODex installation and synthesis](https://github.com/hugs-dex/HUGS-BODex#documentation)
+- [Bench conversion and evaluation](https://github.com/hugs-dex/HUGS-DexGraspBench#documentation)
+- [DexLearn training and export](https://github.com/hugs-dex/HUGS-DexLearn#documentation)
+- [Figure reproduction](docs/figures.md) — requires the corresponding raw evaluation records
+
+Component validation notes describe their recorded checks. A complete reproduction
+using only the current public downloads has not yet been established; configuration
+checks and dry-runs alone do not establish synthesis or model quality.
 
 ## Citation
 
 If you find HUGS useful in your research, please cite our paper:
 
 ```bibtex
-@article{yu2026hugs,
+@inproceedings{yu2026hugs,
   title={HUGS: Guiding Unified Dexterous Grasp Synthesis Across Modes and Scales via Learned Human Priors},
   author={Mingrui Yu and Yongpeng Jiang and Yongyi Jia and Kangchen Lv and Xiangjie Yan and Li Huang and Yi Ren and Xiang Li},
-  journal={arXiv preprint arXiv:2607.04554},
+  booktitle={Conference on Robot Learning (CoRL)},
   year={2026}
 }
 ```
