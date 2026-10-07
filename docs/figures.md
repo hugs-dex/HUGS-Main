@@ -13,79 +13,57 @@ sibling repository:
 ../HUGS-DexGraspBench/output
 ```
 
-The currently available Shadow runs are:
+The Shadow runs used for the local figure are:
 
 | Label | Base run | Available grasp types |
 |---|---|---|
 | Heur-Fix | `readme_heur_fix_shadow_1000_20261001` | `right_full` |
 | Heur-Single | `readme_heur_single_shadow_1000_20261001` | `right_two`, `right_three`, `right_full`, `both_full` |
 | Heur-Multi | `readme_heur_multi_shadow_1000_20261001` | `right_two`, `right_three`, `right_full`, `both_three`, `both_full` |
+| HUGS | `human_prior_1000_gpu0_5_20261007_090621` | `right_two`, `right_three`, `right_full`, `both_three`, `both_full` |
 
-HUGS raw synthesis records are not included in the current public bundle, so
-HUGS and derived HUGS-Single curves are omitted until those records are
-available. The combined figure keeps the paper's four-method synthesis-panel
-layout and retains the HUGS panel and HUGS/HUGS-Single legend symbols, while
-leaving their plots empty. Missing data are not interpreted as zero-valued
-experiments.
+The HUGS evaluation records are available in the local sibling Bench output,
+but are not included in the current public download. The script derives the
+HUGS-Single curves from the same HUGS run. Reproducing those curves requires
+the corresponding raw evaluation records; missing data are not interpreted as
+zero-valued experiments.
 
 ## Synthesis success and diversity
 
 Run from HUGS-Main after the public component repositories are checked out as
-siblings:
+siblings. Times New Roman must be available to Matplotlib; it is the default
+font and matches the original figure's typography.
 
-The default font is Times New Roman, matching the original figure's typography.
-The commands below register local regular and bold font files; adjust these
-paths to your installed fonts. If the font is already available to Matplotlib,
-`--font-files` can be omitted. Using `--font-family "DejaVu Serif"` without
-`--font-files` is an alternative, but changes the figure's appearance.
+The run names must be supplied because the script's default run list does not
+select these evaluations. Method labels are inferred from the names.
 
 ```bash
 cd /path/to/hugs-public/HUGS-Main
 python scripts/figures/synthetic_benchmark/plot_object_scale_synthesis_success_diversity_combined.py \
-  --hand shadow \
-  --stats-root ../HUGS-DexGraspBench/output \
   --runs \
     readme_heur_fix_shadow_1000_20261001 \
     readme_heur_single_shadow_1000_20261001 \
     readme_heur_multi_shadow_1000_20261001 \
-  --labels Heur-Fix Heur-Single Heur-Multi \
+    human_prior_1000_gpu0_5_20261007_090621 \
+  --diversity-feature wrist_joint \
   --figure-data-dir outputs/figure-data/synthetic-benchmark/shadow \
   --output-dir outputs/figures/synthetic-benchmark/shadow \
   --formats pdf png \
-  --dpi 600 \
-  --diversity-feature wrist_joint \
-  --exclude-both-three \
-  --font-files \
-    "$HOME/.local/share/fonts/msttcorefonts/Times_New_Roman.ttf" \
-    "$HOME/.local/share/fonts/msttcorefonts/Times_New_Roman_Bold.ttf" \
-  --refresh-figure-data
+  --exclude-both-three
 ```
 
-The first run scans the public `evaluation/` records and writes schema-v2
-figure-data caches under `outputs/figure-data/`. Subsequent runs can reuse the
-cache with `--load-figure-data`; `--stats-root` is still required for the raw
-wrist-pose PCA scan:
+The command uses the defaults for Shadow, 600 DPI, and raw records under
+`../HUGS-DexGraspBench/output`. It rebuilds schema-v2 count caches in the
+specified figure-data directory and writes the wrist-joint PDF and PNG in the
+specified output directory. `--exclude-both-three` removes the Both-Three mode.
 
-```bash
-python scripts/figures/synthetic_benchmark/plot_object_scale_synthesis_success_diversity_combined.py \
-  --hand shadow \
-  --stats-root ../HUGS-DexGraspBench/output \
-  --runs \
-    readme_heur_fix_shadow_1000_20261001 \
-    readme_heur_single_shadow_1000_20261001 \
-    readme_heur_multi_shadow_1000_20261001 \
-  --labels Heur-Fix Heur-Single Heur-Multi \
-  --figure-data-dir outputs/figure-data/synthetic-benchmark/shadow \
-  --output-dir outputs/figures/synthetic-benchmark/shadow \
-  --formats pdf png \
-  --dpi 600 \
-  --diversity-feature wrist_joint \
-  --exclude-both-three \
-  --font-files \
-    "$HOME/.local/share/fonts/msttcorefonts/Times_New_Roman.ttf" \
-    "$HOME/.local/share/fonts/msttcorefonts/Times_New_Roman_Bold.ttf" \
-  --load-figure-data
-```
+For subsequent runs, append `--load-figure-data` to reuse count caches. PCA
+still scans the raw records at the default stats root. Caches created with a
+custom `--figure-data-dir` require that same option when loading.
+
+If Matplotlib cannot find Times New Roman, add `--font-files /path/to/regular.ttf
+/path/to/bold.ttf` with your local font paths. Alternatively, add
+`--font-family "DejaVu Serif"`, which changes the figure's appearance.
 
 The cache stores public run directory names rather than machine-specific
 absolute paths. The adapter applies the evaluation `succ_flag` (or the
