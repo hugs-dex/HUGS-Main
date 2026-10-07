@@ -57,7 +57,7 @@ All three component repositories are public. Choose the entry point for your tas
 ### Getting Started
 
 Clone the component you need and follow its README. Each component has its own
-environment; browsing this project hub requires no Python installation.
+environment, while browsing this project hub requires no Python installation.
 The [BODex surface example](https://github.com/hugs-dex/HUGS-BODex#quick-start)
 provides a synthesis starting point without a learned prior or checkpoint.
 
