@@ -2,12 +2,7 @@
 
 <h3 align="center">Guiding Unified Dexterous Grasp Synthesis<br>Across Modes and Scales via Learned Human Priors</h3>
 
-<p align="center">
-  Mingrui Yu*, Yongpeng Jiang*, Yongyi Jia, Kangchen Lv,<br>
-  Xiangjie Yan, Li Huang, Yi Ren, and Xiang Li<br>
-  <strong>Tsinghua University</strong><br>
-  <sup>* Equal contribution.</sup>
-</p>
+<p align="center"><strong>CoRL 2026</strong></p>
 
 <p align="center">
   <a href="https://hugs-dex.github.io/">Project Page</a> ·
